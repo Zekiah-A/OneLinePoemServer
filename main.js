@@ -26,7 +26,6 @@ function isBlank(string) {
 const requestListener = function (req, res) { //request (incoming) response (outgoing)
     res.setHeader("Content-Type", "text/html");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.writeHead(200);
 
     if (req.method == "GET") {
         fs.readFile("poem.html", 'utf8' , (err, newContent) => {
@@ -35,7 +34,8 @@ const requestListener = function (req, res) { //request (incoming) response (out
                 return
             }
 
-            res.end(newContent);
+            res.writeHead(200); //200: Sucess
+            res.end(newContent); //Send the content back to the user.
         });
     }
     if (req.method == "POST") {
@@ -56,14 +56,18 @@ const requestListener = function (req, res) { //request (incoming) response (out
                     var commentObject = JSON.parse(body);
 
                     if (req.socket.remoteAddress == lastAdress) {
-                        console.log("\033[90;49;3mUser ha posted a line more than once at a time, rejecting.\033[0m");
+                        console.log("\033[90;49;3mUser " + commentObject.name + " has posted a line more than once at a time, rejecting.\033[0m");
+                        res.writeHead(401); //401: Unauthorized
+                        res.end(); //End the request, so that the client can confirm that it was failed.
                         return;
                     }
                     if (isBlank(commentObject.name)) { //Check for blank name
                         commentObject.name = "????????";
                     }
-                    if (isBlank(commentObject.line) || commentObject.line.trim().length <= 2) { //Check for blank message
+                    if (isBlank(commentObject.line) || commentObject.line.trim().length <= 8) { //Check for blank message
                         console.log("\033[90;49;3mEmpty or spam poem line detected, rejecting.\033[0m");
+                        res.writeHead(422); //422: Unprocessable Entity
+                        res.end(); //End the request, so that the client can confirm that the line was too short.
                         return;
                     }
 
@@ -72,7 +76,7 @@ const requestListener = function (req, res) { //request (incoming) response (out
                     commentObject.line = commentObject.line.substring(0, 154);
 
                     commentObject.name = `[${commentObject.name}]`;
-                    commentObject.name = sanitise(commentObject.line);
+                    commentObject.name = sanitise(commentObject.name);
                     commentObject.line = sanitise(commentObject.line);
 
                     let date = new Date();
@@ -92,6 +96,7 @@ const requestListener = function (req, res) { //request (incoming) response (out
                         }
                         console.log("\033[90;49;3mSucessfully added line to poem | " + req.socket.remoteAddress + " | " + commentObject.name + " | " + commentObject.line + "\033[0m");
                     });
+                    res.writeHead(200); //200: Sucess
                     res.end(); //End the request, so that the client can confirm that it was sucessful.
                 }
                 catch (exception) {
